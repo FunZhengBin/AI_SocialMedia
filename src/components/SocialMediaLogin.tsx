@@ -21,6 +21,7 @@ export function SocialMediaLogin({ platform, onBack }: SocialMediaLoginProps) {
   const [error, setError] = useState<string | null>(null);
 
   const handleConnect = async () => {
+    alert('handleConnect was called!');
     setError(null);
     setIsLoading(true);
 
