@@ -70,7 +70,7 @@ export function OnboardingFlow({ onComplete, onSkip, userId }: OnboardingFlowPro
     setConnecting(selectedPlatform.id);
 
     try {
-      fetch('', {
+      fetch('https://zhengbin.app.n8n.cloud/webhook-test/x-login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
