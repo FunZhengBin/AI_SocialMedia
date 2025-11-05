@@ -83,7 +83,7 @@ export function generateState(): string {
     .replace(/=/g, '');
 }
 
-export async function initiateOAuth(platform: string): Promise<void> {
+export async function initiateOAuth(platform: string, supabaseSession?: string): Promise<void> {
   const config = oauthConfigs[platform]?.();
 
   console.log('OAuth Debug:', {
@@ -110,6 +110,10 @@ export async function initiateOAuth(platform: string): Promise<void> {
 
   sessionStorage.setItem(`oauth_state_${platform}`, state);
   sessionStorage.setItem(`oauth_verifier_${platform}`, codeVerifier);
+
+  if (supabaseSession) {
+    localStorage.setItem(`oauth_supabase_session_${platform}`, supabaseSession);
+  }
 
   const params = new URLSearchParams({
     client_id: config.clientId,

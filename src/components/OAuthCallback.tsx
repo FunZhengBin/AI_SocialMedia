@@ -40,6 +40,12 @@ export function OAuthCallback() {
         throw new Error('Platform not specified');
       }
 
+      const savedSession = localStorage.getItem(`oauth_supabase_session_${platform}`);
+      if (savedSession) {
+        await supabase.auth.setSession(JSON.parse(savedSession));
+        localStorage.removeItem(`oauth_supabase_session_${platform}`);
+      }
+
       setMessage(`Connecting to ${platform}...`);
 
       const tokenData = await exchangeCodeForToken(platform, code, state);

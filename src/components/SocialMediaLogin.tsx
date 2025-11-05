@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { ArrowLeft, Loader2, CheckCircle } from 'lucide-react';
 import { initiateOAuth } from '../services/oauth';
+import { supabase } from '../lib/supabase';
 
 interface SocialMediaLoginProps {
   platform: {
@@ -24,7 +25,9 @@ export function SocialMediaLogin({ platform, onBack }: SocialMediaLoginProps) {
     setIsLoading(true);
 
     try {
-      await initiateOAuth(platform.id);
+      const { data: { session } } = await supabase.auth.getSession();
+      const sessionData = session ? JSON.stringify(session) : undefined;
+      await initiateOAuth(platform.id, sessionData);
     } catch (err: any) {
       setError(err.message || 'Failed to connect. Please try again.');
       setIsLoading(false);
