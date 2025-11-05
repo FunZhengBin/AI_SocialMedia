@@ -55,14 +55,38 @@ export function OAuthCallback() {
 
       console.log('Account info retrieved:', accountInfo);
 
+      const { data: { session } } = await supabase.auth.getSession();
+
+      if (session?.user) {
+        const expiresAt = tokenData.expires_in
+          ? new Date(Date.now() + tokenData.expires_in * 1000).toISOString()
+          : null;
+
+        const { error: dbError } = await supabase
+          .from('social_accounts')
+          .upsert({
+            user_id: session.user.id,
+            platform,
+            account_name: accountInfo.name,
+            account_handle: accountInfo.handle,
+            is_connected: true,
+            access_token: tokenData.access_token,
+            refresh_token: tokenData.refresh_token || null,
+            token_expires_at: expiresAt,
+            updated_at: new Date().toISOString(),
+          }, {
+            onConflict: 'user_id,platform',
+          });
+
+        if (dbError) {
+          console.error('Failed to save account:', dbError);
+          throw new Error('Failed to save account connection');
+        }
+      }
+
       localStorage.setItem(`oauth_success_${platform}`, JSON.stringify({
         platform,
         accountInfo,
-        tokenData: {
-          access_token: tokenData.access_token,
-          refresh_token: tokenData.refresh_token || null,
-          expires_in: tokenData.expires_in,
-        },
         timestamp: Date.now(),
       }));
 
