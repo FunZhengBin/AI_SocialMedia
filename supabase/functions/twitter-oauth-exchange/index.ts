@@ -6,18 +6,18 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Client-Info, Apikey",
 };
 
+const TWITTER_CLIENT_SECRET = 'AE6RHyeqmg0fuXZkVMMAgmEAcrTObGN77q1XsuYsvpNSTG6ky9';
+
 interface TokenRequest {
   code: string;
   redirectUri: string;
   codeVerifier: string;
   clientId: string;
-  clientSecret: string;
 }
 
 interface RefreshTokenRequest {
   refreshToken: string;
   clientId: string;
-  clientSecret: string;
 }
 
 Deno.serve(async (req: Request) => {
@@ -44,7 +44,7 @@ Deno.serve(async (req: Request) => {
         code_verifier: body.codeVerifier,
       });
 
-      const authHeader = btoa(`${body.clientId}:${body.clientSecret}`);
+      const authHeader = btoa(`${body.clientId}:${TWITTER_CLIENT_SECRET}`);
 
       const response = await fetch('https://api.twitter.com/2/oauth2/token', {
         method: 'POST',
@@ -90,7 +90,7 @@ Deno.serve(async (req: Request) => {
         client_id: body.clientId,
       });
 
-      const authHeader = btoa(`${body.clientId}:${body.clientSecret}`);
+      const authHeader = btoa(`${body.clientId}:${TWITTER_CLIENT_SECRET}`);
 
       const response = await fetch('https://api.twitter.com/2/oauth2/token', {
         method: 'POST',

@@ -1,6 +1,5 @@
 interface OAuthConfig {
   clientId: string;
-  clientSecret: string;
   redirectUri: string;
   authorizationUrl: string;
   tokenUrl: string;
@@ -14,8 +13,7 @@ const getRedirectUri = (platform: string) => {
 
 const oauthConfigs: Record<string, () => OAuthConfig> = {
   twitter: () => ({
-    clientId: import.meta.env.VITE_TWITTER_CLIENT_ID || '',
-    clientSecret: import.meta.env.VITE_TWITTER_CLIENT_SECRET || '',
+    clientId: 'MmY2aUd1RXh6YUg2eFFBWWNqeXg6MTpjaQ',
     redirectUri: getRedirectUri('twitter'),
     authorizationUrl: 'https://twitter.com/i/oauth2/authorize',
     tokenUrl: 'https://api.twitter.com/2/oauth2/token',
@@ -23,7 +21,6 @@ const oauthConfigs: Record<string, () => OAuthConfig> = {
   }),
   linkedin: () => ({
     clientId: import.meta.env.VITE_LINKEDIN_CLIENT_ID || '',
-    clientSecret: import.meta.env.VITE_LINKEDIN_CLIENT_SECRET || '',
     redirectUri: getRedirectUri('linkedin'),
     authorizationUrl: 'https://www.linkedin.com/oauth/v2/authorization',
     tokenUrl: 'https://www.linkedin.com/oauth/v2/accessToken',
@@ -31,7 +28,6 @@ const oauthConfigs: Record<string, () => OAuthConfig> = {
   }),
   instagram: () => ({
     clientId: import.meta.env.VITE_INSTAGRAM_CLIENT_ID || '',
-    clientSecret: import.meta.env.VITE_INSTAGRAM_CLIENT_SECRET || '',
     redirectUri: getRedirectUri('instagram'),
     authorizationUrl: 'https://api.instagram.com/oauth/authorize',
     tokenUrl: 'https://api.instagram.com/oauth/access_token',
@@ -39,7 +35,6 @@ const oauthConfigs: Record<string, () => OAuthConfig> = {
   }),
   facebook: () => ({
     clientId: import.meta.env.VITE_FACEBOOK_CLIENT_ID || '',
-    clientSecret: import.meta.env.VITE_FACEBOOK_CLIENT_SECRET || '',
     redirectUri: getRedirectUri('facebook'),
     authorizationUrl: 'https://www.facebook.com/v18.0/dialog/oauth',
     tokenUrl: 'https://graph.facebook.com/v18.0/oauth/access_token',
@@ -47,7 +42,6 @@ const oauthConfigs: Record<string, () => OAuthConfig> = {
   }),
   tiktok: () => ({
     clientId: import.meta.env.VITE_TIKTOK_CLIENT_ID || '',
-    clientSecret: import.meta.env.VITE_TIKTOK_CLIENT_SECRET || '',
     redirectUri: getRedirectUri('tiktok'),
     authorizationUrl: 'https://www.tiktok.com/auth/authorize/',
     tokenUrl: 'https://open-api.tiktok.com/oauth/access_token/',
@@ -178,7 +172,6 @@ export async function exchangeCodeForToken(
         redirectUri: config.redirectUri,
         codeVerifier: codeVerifier,
         clientId: config.clientId,
-        clientSecret: config.clientSecret,
       }),
     });
 
@@ -195,35 +188,7 @@ export async function exchangeCodeForToken(
     return data;
   }
 
-  // For other platforms, use direct API call (may need similar edge functions)
-  const body = new URLSearchParams({
-    grant_type: 'authorization_code',
-    code: code,
-    redirect_uri: config.redirectUri,
-    client_id: config.clientId,
-    client_secret: config.clientSecret,
-    code_verifier: codeVerifier,
-  });
-
-  const response = await fetch(config.tokenUrl, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/x-www-form-urlencoded',
-    },
-    body: body.toString(),
-  });
-
-  if (!response.ok) {
-    const errorData = await response.text();
-    throw new Error(`Token exchange failed: ${errorData}`);
-  }
-
-  const data = await response.json();
-
-  sessionStorage.removeItem(`oauth_state_${platform}`);
-  sessionStorage.removeItem(`oauth_verifier_${platform}`);
-
-  return data;
+  throw new Error(`Platform ${platform} OAuth not yet implemented. Please use Twitter for now.`);
 }
 
 export async function refreshAccessToken(
@@ -249,7 +214,6 @@ export async function refreshAccessToken(
       body: JSON.stringify({
         refreshToken: refreshToken,
         clientId: config.clientId,
-        clientSecret: config.clientSecret,
       }),
     });
 
@@ -261,26 +225,5 @@ export async function refreshAccessToken(
     return await response.json();
   }
 
-  // For other platforms, use direct API call (may need similar edge functions)
-  const body = new URLSearchParams({
-    grant_type: 'refresh_token',
-    refresh_token: refreshToken,
-    client_id: config.clientId,
-    client_secret: config.clientSecret,
-  });
-
-  const response = await fetch(config.tokenUrl, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/x-www-form-urlencoded',
-    },
-    body: body.toString(),
-  });
-
-  if (!response.ok) {
-    const errorData = await response.text();
-    throw new Error(`Token refresh failed: ${errorData}`);
-  }
-
-  return await response.json();
+  throw new Error(`Platform ${platform} token refresh not yet implemented. Please use Twitter for now.`);
 }
