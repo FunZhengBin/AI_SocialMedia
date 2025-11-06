@@ -163,6 +163,39 @@ export async function exchangeCodeForToken(
     throw new Error('Code verifier not found');
   }
 
+  // Use edge function for Twitter OAuth to avoid CORS issues
+  if (platform === 'twitter') {
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+    const edgeFunctionUrl = `${supabaseUrl}/functions/v1/twitter-oauth-exchange?action=exchange`;
+
+    const response = await fetch(edgeFunctionUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        code: code,
+        redirectUri: config.redirectUri,
+        codeVerifier: codeVerifier,
+        clientId: config.clientId,
+        clientSecret: config.clientSecret,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(`Token exchange failed: ${JSON.stringify(errorData)}`);
+    }
+
+    const data = await response.json();
+
+    sessionStorage.removeItem(`oauth_state_${platform}`);
+    sessionStorage.removeItem(`oauth_verifier_${platform}`);
+
+    return data;
+  }
+
+  // For other platforms, use direct API call (may need similar edge functions)
   const body = new URLSearchParams({
     grant_type: 'authorization_code',
     code: code,
@@ -203,6 +236,32 @@ export async function refreshAccessToken(
     throw new Error(`OAuth not configured for ${platform}`);
   }
 
+  // Use edge function for Twitter OAuth to avoid CORS issues
+  if (platform === 'twitter') {
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+    const edgeFunctionUrl = `${supabaseUrl}/functions/v1/twitter-oauth-exchange?action=refresh`;
+
+    const response = await fetch(edgeFunctionUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        refreshToken: refreshToken,
+        clientId: config.clientId,
+        clientSecret: config.clientSecret,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(`Token refresh failed: ${JSON.stringify(errorData)}`);
+    }
+
+    return await response.json();
+  }
+
+  // For other platforms, use direct API call (may need similar edge functions)
   const body = new URLSearchParams({
     grant_type: 'refresh_token',
     refresh_token: refreshToken,
