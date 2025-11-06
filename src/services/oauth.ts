@@ -102,8 +102,8 @@ export async function initiateOAuth(platform: string, supabaseSession?: string):
   const codeVerifier = generateCodeVerifier();
   const codeChallenge = await generateCodeChallenge(codeVerifier);
 
-  sessionStorage.setItem(`oauth_state_${platform}`, state);
-  sessionStorage.setItem(`oauth_verifier_${platform}`, codeVerifier);
+  localStorage.setItem(`oauth_state_${platform}`, state);
+  localStorage.setItem(`oauth_verifier_${platform}`, codeVerifier);
 
   if (supabaseSession) {
     console.log('Saving Supabase session to localStorage:', {
@@ -147,15 +147,20 @@ export async function exchangeCodeForToken(
     throw new Error(`OAuth not configured for ${platform}`);
   }
 
-  const savedState = sessionStorage.getItem(`oauth_state_${platform}`);
+  const savedState = localStorage.getItem(`oauth_state_${platform}`);
   if (savedState !== state) {
+    console.error('State mismatch:', { savedState, receivedState: state });
     throw new Error('Invalid state parameter. Possible CSRF attack.');
   }
 
-  const codeVerifier = sessionStorage.getItem(`oauth_verifier_${platform}`);
+  const codeVerifier = localStorage.getItem(`oauth_verifier_${platform}`);
   if (!codeVerifier) {
     throw new Error('Code verifier not found');
   }
+
+  // Clean up after successful validation
+  localStorage.removeItem(`oauth_state_${platform}`);
+  localStorage.removeItem(`oauth_verifier_${platform}`);
 
   // Use edge function for Twitter OAuth to avoid CORS issues
   if (platform === 'twitter') {
