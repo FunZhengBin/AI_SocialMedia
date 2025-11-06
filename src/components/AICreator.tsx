@@ -1,214 +1,162 @@
-import { useState } from 'react';
-import { supabase } from '../lib/supabase';
-import { useAuth } from '../contexts/AuthContext';
-import { Button } from './ui/button';
-import { Textarea } from './ui/textarea';
-import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
-import { Label } from './ui/label';
-import { Sparkles, Loader2, CheckCircle2 } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { ThemeProvider } from './contexts/ThemeContext';
+import { Auth } from './components/Auth';
+import { HomePage } from './components/HomePage';
+import { OnboardingFlow } from './components/OnboardingFlow';
+import { DashboardView } from './components/DashboardView';
+import { AICreator } from './components/AICreator';
+import { ContentLibrary } from './components/ContentLibrary';
+import { SchedulerView } from './components/SchedulerView';
+import { AnalyticsView } from './components/AnalyticsView';
+import { SocialAccounts } from './components/SocialAccounts';
+import { SettingsView } from './components/SettingsView';
+import { OAuthCallback } from './components/OAuthCallback';
+import { NotificationBell } from './components/NotificationBell';
+import { Button } from './components/ui/button';
+import {
+  LayoutDashboard,
+  Sparkles,
+  FileText,
+  Calendar,
+  BarChart3,
+  Share2,
+  Settings as SettingsIcon,
+  LogOut,
+  Loader2
+} from 'lucide-react';
 
-export function AICreator() {
-  const { user } = useAuth();
-  const [prompt, setPrompt] = useState('');
-  const [generatedContent, setGeneratedContent] = useState('');
-  const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
+type View = 'dashboard' | 'ai-creator' | 'content' | 'scheduler' | 'analytics' | 'social' | 'settings';
 
-  const platforms = [
-    { id: 'twitter', name: 'Twitter', icon: '𝕏' },
-    { id: 'linkedin', name: 'LinkedIn', icon: '💼' },
-    { id: 'instagram', name: 'Instagram', icon: '📷' },
-    { id: 'facebook', name: 'Facebook', icon: '📘' },
+function AppContent() {
+  const { user, loading, signOut } = useAuth();
+  const [currentView, setCurrentView] = useState<View>('dashboard'); // default tab = dashboard
+  const [showAuth, setShowAuth] = useState(false);
+  const [showOnboarding, setShowOnboarding] = useState(false);
+
+  if (window.location.pathname.startsWith('/auth/callback/')) {
+    return <OAuthCallback />;
+  }
+
+  useEffect(() => {
+    if (user) {
+      const hasCompletedOnboarding = localStorage.getItem(`onboarding_completed_${user.id}`);
+      if (!hasCompletedOnboarding) {
+        setShowOnboarding(true);
+      }
+    }
+  }, [user]);
+
+  const handleOnboardingComplete = () => {
+    if (user) {
+      localStorage.setItem(`onboarding_completed_${user.id}`, 'true');
+      setShowOnboarding(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
+        <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+      </div>
+    );
+  }
+
+  if (!user) {
+    if (showAuth) return <Auth />;
+    return <HomePage onGetStarted={() => setShowAuth(true)} />;
+  }
+
+  if (showOnboarding) {
+    return (
+      <OnboardingFlow
+        onComplete={handleOnboardingComplete}
+        onSkip={handleOnboardingComplete}
+        userId={user?.id}
+      />
+    );
+  }
+
+  const navItems = [
+    { id: 'dashboard' as View, label: 'Dashboard', icon: LayoutDashboard },
+    { id: 'ai-creator' as View, label: 'AI Creator', icon: Sparkles },
+    { id: 'content' as View, label: 'Content', icon: FileText },
+    { id: 'scheduler' as View, label: 'Scheduler', icon: Calendar },
+    { id: 'analytics' as View, label: 'Analytics', icon: BarChart3 },
+    { id: 'social' as View, label: 'Social Accounts', icon: Share2 },
+    { id: 'settings' as View, label: 'Settings', icon: SettingsIcon },
   ];
 
-  const handleGenerate = async () => {
-    setLoading(true);
-    try {
-      const response = await fetch('https://samyog.app.n8n.cloud/webhook/receive-message', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          prompt: prompt,
-          userId: user?.id,
-          email: user?.email,
-          timestamp: new Date().toISOString(),
-        }),
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        const content = data.generatedContent || `🚀 ${prompt}\n\nI'm excited to share this with you! This is an AI-generated post that's optimized for engagement across social platforms.\n\n#SocialMedia #AI #Automation`;
-        setGeneratedContent(content);
-      } else {
-        const content = `🚀 ${prompt}\n\nI'm excited to share this with you! This is an AI-generated post that's optimized for engagement across social platforms.\n\n#SocialMedia #AI #Automation`;
-        setGeneratedContent(content);
-      }
-    } catch (error) {
-      console.error('Error calling webhook:', error);
-      const content = `🚀 ${prompt}\n\nI'm excited to share this with you! This is an AI-generated post that's optimized for engagement across social platforms.\n\n#SocialMedia #AI #Automation`;
-      setGeneratedContent(content);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleSave = async () => {
-    if (!generatedContent || selectedPlatforms.length === 0) return;
-
-    setSaving(true);
-    try {
-      // Get the first connected social account for the selected platform
-      const platform = selectedPlatforms[0];
-      const { data: accountData } = await supabase
-        .from('social_accounts')
-        .select('id')
-        .eq('user_id', user!.id)
-        .eq('platform', platform)
-        .eq('is_active', true)
-        .maybeSingle();
-
-      if (!accountData) {
-        alert(`Please connect your ${platform} account first`);
-        setSaving(false);
-        return;
-      }
-
-      const { error } = await supabase.from('posts').insert({
-        user_id: user!.id,
-        social_account_id: accountData.id,
-        content: generatedContent,
-        platform: platform,
-        status: 'draft',
-      });
-
-      if (error) throw error;
-
-      setSaved(true);
-      setTimeout(() => {
-        setSaved(false);
-        setGeneratedContent('');
-        setPrompt('');
-        setSelectedPlatforms([]);
-      }, 2000);
-    } catch (error) {
-      console.error('Error saving post:', error);
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const togglePlatform = (platformId: string) => {
-    setSelectedPlatforms((prev) =>
-      prev.includes(platformId)
-        ? prev.filter((p) => p !== platformId)
-        : [...prev, platformId]
-    );
-  };
-
   return (
-    <div className="p-8 max-w-4xl mx-auto">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900">AI Content Creator</h1>
-        <p className="text-gray-600 mt-1">Generate engaging social media posts with AI</p>
-      </div>
-
-      <Card className="mb-6">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Sparkles className="w-5 h-5 text-blue-600" />
-            Create Your Post
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div>
-            <Label htmlFor="prompt">What would you like to post about?</Label>
-            <Textarea
-              id="prompt"
-              placeholder="E.g., Share tips about productivity, announce a new product, celebrate a milestone..."
-              value={prompt}
-              onChange={(e) => setPrompt(e.target.value)}
-              className="mt-2 min-h-[100px]"
-            />
-          </div>
-
-          <Button
-            onClick={handleGenerate}
-            disabled={!prompt || loading}
-            className="w-full"
-          >
-            {loading ? (
-              <>
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                Generating...
-              </>
-            ) : (
-              <>
-                <Sparkles className="w-4 h-4 mr-2" />
-                Generate Content
-              </>
-            )}
-          </Button>
-        </CardContent>
-      </Card>
-
-      {generatedContent && (
-        <Card className="mb-6">
-          <CardHeader>
-            <CardTitle>Generated Content</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <Textarea
-              value={generatedContent}
-              onChange={(e) => setGeneratedContent(e.target.value)}
-              className="min-h-[150px]"
-            />
-
-            <div>
-              <Label>Select Platforms</Label>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-2">
-                {platforms.map((platform) => (
-                  <button
-                    key={platform.id}
-                    onClick={() => togglePlatform(platform.id)}
-                    className={`p-4 border-2 rounded-lg transition-all ${
-                      selectedPlatforms.includes(platform.id)
-                        ? 'border-blue-600 bg-blue-50'
-                        : 'border-gray-200 hover:border-gray-300'
-                    }`}
-                  >
-                    <div className="text-2xl mb-1">{platform.icon}</div>
-                    <div className="text-sm font-medium">{platform.name}</div>
-                  </button>
-                ))}
-              </div>
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex">
+      <aside className="w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col">
+        <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+          <div className="flex items-center gap-3">
+            <div className="bg-gradient-to-br from-blue-600 to-purple-600 p-2 rounded-lg">
+              <Sparkles className="w-6 h-6 text-white" />
             </div>
+            <div>
+              <h1 className="text-xl font-bold text-gray-900 dark:text-white">Social AI</h1>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Automation Suite</p>
+            </div>
+          </div>
+        </div>
 
-            <Button
-              onClick={handleSave}
-              disabled={saving || saved || selectedPlatforms.length === 0}
-              className="w-full"
-            >
-              {saved ? (
-                <>
-                  <CheckCircle2 className="w-4 h-4 mr-2" />
-                  Saved!
-                </>
-              ) : saving ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Saving...
-                </>
-              ) : (
-                'Save as Draft'
-              )}
-            </Button>
-          </CardContent>
-        </Card>
-      )}
+        <nav className="flex-1 p-4 space-y-1">
+          {navItems.map((item) => {
+            const Icon = item.icon;
+            const isActive = currentView === item.id;
+            return (
+              <button
+                key={item.id}
+                onClick={() => setCurrentView(item.id)}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+                  isActive
+                    ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 font-medium'
+                    : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
+                }`}
+              >
+                <Icon className="w-5 h-5" />
+                <span>{item.label}</span>
+              </button>
+            );
+          })}
+        </nav>
+
+        <div className="p-4 border-t border-gray-200 dark:border-gray-700">
+          <div className="flex justify-start pl-2 mb-2">
+            <NotificationBell />
+          </div>
+          <Button
+            variant="ghost"
+            className="w-full justify-start dark:text-gray-300 dark:hover:bg-gray-700"
+            onClick={() => signOut()}
+          >
+            <LogOut className="w-5 h-5 mr-3" />
+            Sign out
+          </Button>
+        </div>
+      </aside>
+
+      <main className="flex-1 overflow-auto bg-gray-50 dark:bg-gray-900">
+        {currentView === 'dashboard' && <DashboardView />}
+        {currentView === 'ai-creator' && <AICreator />}
+        {currentView === 'content' && <ContentLibrary />}
+        {currentView === 'scheduler' && <SchedulerView />}
+        {currentView === 'analytics' && <AnalyticsView />}
+        {currentView === 'social' && <SocialAccounts />}
+        {currentView === 'settings' && <SettingsView />}
+      </main>
     </div>
+  );
+}
+
+export default function App() {
+  return (
+    <ThemeProvider>
+      <AuthProvider>
+        <AppContent />
+      </AuthProvider>
+    </ThemeProvider>
   );
 }
