@@ -92,7 +92,7 @@ export function DashboardView() {
           .eq('user_id', user!.id)
           .eq('is_connected', true),
         supabase
-          .from('analytics_data')
+          .from('analytics')
           .select('engagement_rate')
           .eq('user_id', user!.id),
       ]);
