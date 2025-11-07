@@ -227,6 +227,29 @@ export function SchedulerView({ refreshTrigger }: SchedulerViewProps = {}) {
     if (!confirm('Are you sure you want to publish this post to Twitter now?')) return;
 
     try {
+      const { data: twitterAccount, error: tokenError } = await supabase
+        .from('social_accounts')
+        .select('access_token, refresh_token, account_handle')
+        .eq('user_id', user!.id)
+        .eq('platform', 'twitter')
+        .eq('is_active', true)
+        .maybeSingle();
+
+      if (tokenError) {
+        console.error('Error fetching Twitter account:', tokenError);
+        throw new Error('Failed to fetch Twitter account details');
+      }
+
+      if (!twitterAccount) {
+        alert('No active Twitter account found. Please connect your Twitter account first.');
+        return;
+      }
+
+      if (!twitterAccount.access_token) {
+        alert('Twitter access token not found. Please reconnect your Twitter account.');
+        return;
+      }
+
       const response = await fetch('https://zhengbin.app.n8n.cloud/webhook-test/twitter-post', {
         method: 'POST',
         headers: {
@@ -238,6 +261,9 @@ export function SchedulerView({ refreshTrigger }: SchedulerViewProps = {}) {
           taskId: task.id,
           mediaUrls: task.media_urls || [],
           scheduledFor: task.scheduled_for,
+          accessToken: twitterAccount.access_token,
+          refreshToken: twitterAccount.refresh_token,
+          accountHandle: twitterAccount.account_handle,
         }),
       });
 
